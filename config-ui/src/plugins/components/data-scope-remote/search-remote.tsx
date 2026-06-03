@@ -98,7 +98,7 @@ export const SearchRemote = ({ mode, plugin, connectionId, config, disabledScope
 
       newItems = (res.children ?? []).map((it) => ({
         ...it,
-        title: getPluginScopeName(plugin, it) || it.name,
+        title: getPluginScopeName(plugin, it) || it.fullName || it.name,
       }));
 
       nextPageToken = res.nextPageToken;
