@@ -80,14 +80,16 @@ func makeDataSourcePipelinePlanV200(
 			stage = coreModels.PipelineStage{}
 		}
 
-		// construct task options for github
+		// construct task options for jenkins
 		task, err := helper.MakePipelinePlanTask(
 			"jenkins",
 			subtaskMetas,
 			scopeConfig.Entities,
 			tasks.JenkinsOptions{
-				ConnectionId: connection.ID,
-				FullName:     jenkinsJob.FullName,
+				ConnectionId:  connection.ID,
+				FullName:      jenkinsJob.FullName,
+				ScopeConfigId: jenkinsJob.ScopeScopeConfigId(),
+				ScopeConfig:   scopeConfig,
 			},
 		)
 		if err != nil {
