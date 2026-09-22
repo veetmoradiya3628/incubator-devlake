@@ -32,6 +32,28 @@ import { getPluginScopeName } from '@/plugins';
 import * as T from './types';
 import * as S from './styled';
 
+export const mergeRemoteSearchPage = ({
+  previousItems,
+  previousCurrentItems,
+  newItems,
+  page,
+  pageSize,
+  total,
+}: {
+  previousItems: McsItem<T.ResItem>[];
+  previousCurrentItems: McsItem<T.ResItem>[];
+  newItems: McsItem<T.ResItem>[];
+  page: number;
+  pageSize: number;
+  total: number;
+}) => {
+  const items = page === 1 ? newItems : uniqBy([...previousItems, ...newItems], 'id');
+  const currentItems = page === 1 ? newItems : uniqBy([...previousCurrentItems, ...newItems], 'id');
+  const hasMore = total > 0 ? page * pageSize < total : newItems.length >= pageSize;
+
+  return { items, currentItems, hasMore };
+};
+
 interface Props {
   mode: 'single' | 'multiple';
   plugin: string;
@@ -146,19 +168,26 @@ export const SearchRemote = ({ mode, plugin, connectionId, config, disabledScope
       }));
 
       const total = res.count ?? 0;
-      // If the backend returns a real total, use it; otherwise fall back to
-      // the heuristic: a full page means there are likely more results.
-      const hasMore = total > 0 ? search.page * PAGE_SIZE < total : newItems.length >= PAGE_SIZE;
 
-      setSearch((s) => ({
-        ...s,
-        loading: false,
-        items: [...allItems, ...newItems],
-        // Accumulate results across pages so previous pages remain visible
-        currentItems: s.page === 1 ? newItems : [...s.currentItems, ...newItems],
-        total,
-        hasMore,
-      }));
+      setSearch((s) => {
+        const merged = mergeRemoteSearchPage({
+          previousItems: s.items,
+          previousCurrentItems: s.currentItems,
+          newItems,
+          page: s.page,
+          pageSize: PAGE_SIZE,
+          total,
+        });
+
+        return {
+          ...s,
+          loading: false,
+          items: merged.items,
+          currentItems: merged.currentItems,
+          total,
+          hasMore: merged.hasMore,
+        };
+      });
     } catch {
       setSearch((s) => ({ ...s, loading: false, hasMore: false }));
     }
@@ -194,7 +223,16 @@ export const SearchRemote = ({ mode, plugin, connectionId, config, disabledScope
           placeholder={config.searchPlaceholder ?? 'Search'}
           value={search.query}
           onChange={(e) =>
-            setSearch({ ...search, query: e.target.value, loading: true, currentItems: [], page: 1, hasMore: false })
+            setSearch((s) => ({
+              ...s,
+              query: e.target.value,
+              loading: true,
+              items: [],
+              currentItems: [],
+              page: 1,
+              total: 0,
+              hasMore: false,
+            }))
           }
         />
         {!searchDebounce ? (
